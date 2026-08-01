@@ -16,7 +16,7 @@ def get_ai_analysis(user_message: str, system_prompt: str) -> str:
         genai.configure(api_key=api_key, transport='rest')
         
         model = genai.GenerativeModel(
-            model_name='gemini-1.5-flash',
+            model_name='gemini-flash-latest',
             system_instruction=system_prompt
         )
         
