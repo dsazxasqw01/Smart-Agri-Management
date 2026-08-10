@@ -190,9 +190,9 @@ with tab_lp:
 
     with col_lp_settings:
         st.subheader("تنظیمات پارامترها")
-        land_limit = st.slider("🏞️ مساحت کل زمین (هکتار):", min_value=10, max_value=500, value=100, step=10)
-        water_limit = st.slider("💧 حق‌آبه کل (متر مکعب):", min_value=10000, max_value=300000, value=100000, step=5000)
-        fert_limit = st.slider("🧪 موجودی کود (کیلوگرم):", min_value=1000, max_value=50000, value=5000, step=500)
+        land_limit = st.slider("🏞️ مساحت کل زمین (هکتار):", min_value=10, max_value=1000, value=200, step=10)
+        water_limit = st.slider("💧 حق‌آبه کل (متر مکعب):", min_value=10000, max_value=10000000, value=1000000, step=50000)
+        fert_limit = st.slider("🧪 موجودی کود (کیلوگرم):", min_value=1000, max_value=500000, value=50000, step=5000)
 
         if st.button("اجرای مدل بهینه‌سازی کشت 🚀", use_container_width=True):
             with st.spinner("در حال حل ماتریس‌های برنامه‌ریزی خطی..."):
@@ -238,8 +238,6 @@ with tab_lp:
                     )
                     fig.update_traces(textposition='inside', textinfo='percent+label')
                     
-                    # حذف آرگومان کلید (key) رندوم برای رفع مشکل آپدیت نشدن نمودار
-                    # استریم‌لیت با تشخیص تغییر آبجکت fig، به درستی آن را آپدیت خواهد کرد
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.warning("منابع وارد شده به قدری کم است که امکان کشت هیچ محصولی وجود ندارد!")

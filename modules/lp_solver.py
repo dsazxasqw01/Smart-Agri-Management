@@ -3,7 +3,7 @@ from typing import Dict, Any
 
 def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_budget: float) -> Dict[str, Any]:
     """
-    حل‌کننده ریاضی مسئله برنامه‌ریزی خطی (LP) برای الگوی کشت بهینه (با مکانیزم جریمه انعطاف‌پذیر).
+    حل‌کننده ریاضی مسئله برنامه‌ریزی خطی (LP) برای الگوی کشت بهینه (با مکانیزم جریمه علمی و انعطاف‌پذیر).
     """
     model = pulp.LpProblem("Smart_Agri_Crop_Allocation", pulp.LpMaximize)
 
@@ -22,9 +22,10 @@ def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_bu
     # ==========================================
     # تابع هدف (سود منهای جریمه‌های تک‌کشتی)
     # سود پایه: گندم 50، جو 40، ذرت 90
-    # جریمه مازاد: گندم -20، جو -15، ذرت -40
+    # جریمه مازاد: بر اساس اصول زراعت، کشت متوالی بیش از حد یک محصول باعث افت عملکرد حدوداً 25 درصدی می‌شود.
+    # جریمه‌ها = 25% از سود پایه (گندم: 12.5، جو: 10، ذرت: 22.5)
     # ==========================================
-    model += (50 * wheat + 40 * barley + 90 * corn) - (20 * wheat_excess + 15 * barley_excess + 40 * corn_excess), "Total_Profit"
+    model += (50 * wheat + 40 * barley + 90 * corn) - (12.5 * wheat_excess + 10 * barley_excess + 22.5 * corn_excess), "Total_Profit"
 
     # ==========================================
     # قیود منابع فیزیکی
@@ -34,12 +35,13 @@ def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_bu
     model += (total_planted <= land_budget, "Land_Constraint")
 
     # ==========================================
-    # قیود نرم (Soft Constraints) برای شناسایی مازاد
-    # اگر محصولی بیش از 40 درصد کل کشت را اشغال کند، مقدار مازاد آن محاسبه شده و جریمه می‌شود
+    # قیود نرم (Soft Constraints) برای شناسایی مازاد بر اساس تناوب زراعی
+    # استاندارد تناوب 3 ساله: هیچ محصولی در شرایط ایده‌آل نباید بیش از 1/3 (33.3 درصد) کل زمین را اشغال کند.
     # ==========================================
-    model += wheat - 0.40 * total_planted <= wheat_excess, "Wheat_Penalty_Bound"
-    model += barley - 0.40 * total_planted <= barley_excess, "Barley_Penalty_Bound"
-    model += corn - 0.40 * total_planted <= corn_excess, "Corn_Penalty_Bound"
+    rotation_limit = 1/3
+    model += wheat - rotation_limit * total_planted <= wheat_excess, "Wheat_Penalty_Bound"
+    model += barley - rotation_limit * total_planted <= barley_excess, "Barley_Penalty_Bound"
+    model += corn - rotation_limit * total_planted <= corn_excess, "Corn_Penalty_Bound"
 
     # حل کردن ماتریس
     model.solve(pulp.PULP_CBC_CMD(msg=False))
