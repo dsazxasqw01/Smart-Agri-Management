@@ -1,5 +1,6 @@
 import streamlit as st
-import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
 import os
@@ -20,6 +21,59 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# 💅 استایل‌های سفارشی (CSS) برای راست‌چین کردن و زیبایی
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;700;900&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Vazirmatn', sans-serif !important;
+}
+
+/* راست‌چین کردن کل برنامه */
+.stApp {
+    direction: rtl;
+}
+
+/* تنظیمات متون برای راست‌چین */
+p, h1, h2, h3, h4, h5, h6, span, label, .stMarkdown, div[data-testid="stMetricValue"], div[data-testid="stMetricDelta"] {
+    text-align: right !important;
+}
+
+/* چپ‌چین نگه داشتن کدهای پایتون در صورت نیاز */
+code, pre {
+    direction: ltr !important;
+    text-align: left !important;
+    font-family: monospace !important;
+}
+
+/* استایل دهی به دکمه‌ها */
+.stButton>button {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    color: white;
+}
+
+/* زیباسازی باکس‌های متریک */
+[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+</style>
+""", unsafe_allow_html=True)
 
 # 💾 مدیریت حافظه موقت (Session State Initialization)
 if "lp_results" not in st.session_state:
@@ -50,7 +104,7 @@ tab_lp, tab_ga, tab_ai = st.tabs([
 with tab_lp:
     st.header("تخصیص بهینه منابع آب و کود به مزارع")
 
-    col_lp_settings, col_lp_results = st.columns([1, 2])
+    col_lp_settings, col_lp_results = st.columns([1, 2.5])
 
     with col_lp_settings:
         st.subheader("تنظیمات پارامترها")
@@ -79,21 +133,36 @@ with tab_lp:
 
                 labels = ['گندم (Wheat)', 'جو (Barley)', 'ذرت (Corn)']
                 sizes = [res['wheat_ha'], res['barley_ha'], res['corn_ha']]
-                colors = ['#f1c40f', '#e67e22', '#2ecc71']
-
+                
                 actual_labels = [l for i, l in enumerate(labels) if sizes[i] > 0]
                 actual_sizes = [s for s in sizes if s > 0]
-                actual_colors = [c for i, c in enumerate(colors) if sizes[i] > 0]
 
                 if actual_sizes:
-                    fig, ax = plt.subplots(figsize=(6, 4))
-                    ax.pie(actual_sizes, labels=actual_labels, colors=actual_colors, autopct='%1.1f%%',
-                           startangle=140, explode=[0.05]*len(actual_sizes), shadow=True)
-                    ax.axis('equal')
-                    st.pyplot(fig)
+                    df_pie = pd.DataFrame({"محصول": actual_labels, "مساحت پیشنهادی (هکتار)": actual_sizes})
+                    
+                    # نمودار دایره ای مدرن با پلاتلی
+                    fig = px.pie(
+                        df_pie, 
+                        values="مساحت پیشنهادی (هکتار)", 
+                        names="محصول",
+                        color="محصول",
+                        color_discrete_map={
+                            'گندم (Wheat)': '#f1c40f', 
+                            'جو (Barley)': '#e67e22', 
+                            'ذرت (Corn)': '#2ecc71'
+                        },
+                        hole=0.4
+                    )
+                    fig.update_layout(
+                        margin=dict(t=20, b=20, l=20, r=20),
+                        font=dict(family="Vazirmatn", size=14),
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
 
-                    df = pd.DataFrame({"محصول": actual_labels, "مساحت پیشنهادی (هکتار)": actual_sizes})
-                    st.dataframe(df, use_container_width=True)
+                    st.dataframe(df_pie, use_container_width=True)
                 else:
                     st.warning("منابع وارد شده به قدری کم است که امکان کشت هیچ محصولی وجود ندارد!")
             else:
@@ -107,7 +176,7 @@ with tab_lp:
 with tab_ga:
     st.header("زمان‌بندی و مسیریابی ماشین‌آلات سنگین (کمباین)")
 
-    col_ga_settings, col_ga_results = st.columns([1, 2])
+    col_ga_settings, col_ga_results = st.columns([1, 2.5])
 
     with col_ga_settings:
         st.subheader("تنظیمات ژنتیک (Hyperparameters)")
@@ -140,31 +209,68 @@ with tab_ga:
                 path_closed = path + [path[0]]
                 path_coords = coords[path_closed]
 
-                fig_map, ax_map = plt.subplots(figsize=(8, 5))
-                ax_map.plot(path_coords[:, 0], path_coords[:, 1], color='#2980b9', linestyle='-', linewidth=2, zorder=1)
-                ax_map.scatter(coords[:, 0], coords[:, 1], color='#e74c3c', s=100, zorder=2, label='مزارع')
-                ax_map.scatter(coords[path[0], 0], coords[path[0], 1], color='#27ae60', s=200, marker='*', zorder=3, label='گاراژ مرکزی (مبدأ)')
-
-                for i, (x, y) in enumerate(coords):
-                    ax_map.annotate(str(i), (x+1, y+1), fontsize=9)
-
-                ax_map.set_title("Optimal Harvester Route Network", pad=15)
-                ax_map.grid(True, linestyle='--', alpha=0.6)
-                ax_map.legend()
-                st.pyplot(fig_map)
+                fig_map = go.Figure()
+                
+                # رسم مزارع
+                fig_map.add_trace(go.Scatter(
+                    x=coords[:, 0], y=coords[:, 1], 
+                    mode='markers+text',
+                    text=[str(i) for i in range(len(coords))],
+                    textposition="top center",
+                    marker=dict(size=12, color='#e74c3c', line=dict(width=1, color='white')),
+                    name='مزارع'
+                ))
+                
+                # رسم مسیر
+                fig_map.add_trace(go.Scatter(
+                    x=path_coords[:, 0], y=path_coords[:, 1], 
+                    mode='lines',
+                    line=dict(width=2, color='#2980b9'),
+                    name='مسیر حرکت'
+                ))
+                
+                # گاراژ
+                fig_map.add_trace(go.Scatter(
+                    x=[coords[path[0], 0]], y=[coords[path[0], 1]], 
+                    mode='markers',
+                    marker=dict(size=20, color='#27ae60', symbol='star', line=dict(width=1, color='white')),
+                    name='گاراژ مرکزی (مبدأ)'
+                ))
+                
+                fig_map.update_layout(
+                    title="شبکه بهینه مسیریابی ماشین‌آلات",
+                    xaxis_title="مختصات X", yaxis_title="مختصات Y",
+                    font=dict(family="Vazirmatn"),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                    xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)'),
+                    yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)')
+                )
+                
+                st.plotly_chart(fig_map, use_container_width=True)
 
                 st.write("**ترتیب ویزیت مزارع:**")
                 st.code(" ➔ ".join(map(str, path_closed)))
 
             with chart_tab2:
                 st.write("این نمودار نشان می‌دهد الگوریتم در چه نسلی به جواب بهینه رسیده و متوقف شده است.")
-                fig_hist, ax_hist = plt.subplots(figsize=(8, 4))
-                ax_hist.plot(res_ga["history"], color='#8e44ad', linewidth=2)
-                ax_hist.set_xlabel("نسل‌ها (Generations)")
-                ax_hist.set_ylabel("مسافت کل (Distance)")
-                ax_hist.set_title("Genetic Algorithm Convergence History")
-                ax_hist.grid(True, linestyle='--', alpha=0.6)
-                st.pyplot(fig_hist)
+                
+                fig_hist = px.line(
+                    x=list(range(len(res_ga["history"]))), 
+                    y=res_ga["history"],
+                    labels={'x': 'نسل‌ها (Generations)', 'y': 'مسافت کل (کیلومتر)'}
+                )
+                fig_hist.update_traces(line_color='#8e44ad', line_width=3)
+                fig_hist.update_layout(
+                    title="روند همگرایی الگوریتم ژنتیک",
+                    font=dict(family="Vazirmatn"),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)'),
+                    yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)')
+                )
+                st.plotly_chart(fig_hist, use_container_width=True)
         else:
             st.caption("برای مشاهده نقشه مسیریابی، الگوریتم ژنتیک را اجرا کنید.")
 

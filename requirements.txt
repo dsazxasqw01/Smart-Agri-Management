@@ -3,5 +3,6 @@ pulp
 numpy
 pandas
 matplotlib
+plotly
 google-generativeai
 python-dotenv
