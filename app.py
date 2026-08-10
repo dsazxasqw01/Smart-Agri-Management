@@ -191,32 +191,31 @@ with tab_lp:
     with col_lp_settings:
         st.subheader("تنظیمات پارامترها")
         
-        # اسلایدر زمین
         land_limit = st.slider("🏞️ مساحت کل زمین (هکتار):", min_value=50, max_value=500, value=100, step=10)
         
-        # اسلایدر آب و تحلیل لحظه‌ای درجه‌بندی (Water Grading)
-        water_limit = st.slider("💧 حق‌آبه کل (متر مکعب):", min_value=100000, max_value=4000000, value=700000, step=50000)
+        # تنظیم محدوده اسلایدرها بر اساس کالیبراسیون جدید (گندم:3500، جو:4000، ذرت:8000)
+        water_limit = st.slider("💧 حق‌آبه کل (متر مکعب):", min_value=100000, max_value=4000000, value=600000, step=50000)
         water_per_ha = water_limit / land_limit
-        if water_per_ha < 4000:
+        if water_per_ha < 3500:
             st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#ff4b4b; font-size:0.85em;'>🔴 وضعیت: بحران آبی (بخشی از زمین بایر می‌ماند)</span></div>", unsafe_allow_html=True)
-        elif water_per_ha < 6000:
-            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#feca57; font-size:0.85em;'>🟡 وضعیت: محدودیت آبی (تمایل مدل به جو/گندم)</span></div>", unsafe_allow_html=True)
-        elif water_per_ha < 8000:
-            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#1dd1a1; font-size:0.85em;'>🟢 وضعیت: متوازن (ترکیب بهینه ۳ محصول)</span></div>", unsafe_allow_html=True)
+        elif water_per_ha < 5000:
+            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#feca57; font-size:0.85em;'>🟡 وضعیت: محدودیت آبی (گرایش شدید به گندم/جو)</span></div>", unsafe_allow_html=True)
+        elif water_per_ha < 7500:
+            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#1dd1a1; font-size:0.85em;'>🟢 وضعیت: متوازن (ترکیب بهینه محصولات)</span></div>", unsafe_allow_html=True)
         else:
-            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#54a0ff; font-size:0.85em;'>🔵 وضعیت: مازاد آب (تمایل مدل به ذرت)</span></div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#54a0ff; font-size:0.85em;'>🔵 وضعیت: مازاد آب (گرایش شدید به ذرت)</span></div>", unsafe_allow_html=True)
 
-        # اسلایدر کود و تحلیل لحظه‌ای درجه‌بندی (Fertilizer Grading)
-        fert_limit = st.slider("🧪 موجودی کود (کیلوگرم):", min_value=5000, max_value=200000, value=28000, step=2000)
+        # تنظیم محدوده اسلایدر کود (جو:100، گندم:200، ذرت:400)
+        fert_limit = st.slider("🧪 موجودی کود (کیلوگرم):", min_value=5000, max_value=200000, value=25000, step=2000)
         fert_per_ha = fert_limit / land_limit
-        if fert_per_ha < 150:
+        if fert_per_ha < 100:
             st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#ff4b4b; font-size:0.85em;'>🔴 وضعیت: بحران کودی (بخشی از زمین بایر می‌ماند)</span></div>", unsafe_allow_html=True)
-        elif fert_per_ha < 220:
-            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#feca57; font-size:0.85em;'>🟡 وضعیت: محدودیت کودی (تمایل مدل به جو)</span></div>", unsafe_allow_html=True)
-        elif fert_per_ha < 320:
-            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#1dd1a1; font-size:0.85em;'>🟢 وضعیت: متوازن (ترکیب بهینه ۳ محصول)</span></div>", unsafe_allow_html=True)
+        elif fert_per_ha < 180:
+            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#feca57; font-size:0.85em;'>🟡 وضعیت: محدودیت کودی (گرایش شدید به جو)</span></div>", unsafe_allow_html=True)
+        elif fert_per_ha < 350:
+            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#1dd1a1; font-size:0.85em;'>🟢 وضعیت: متوازن (ترکیب بهینه محصولات)</span></div>", unsafe_allow_html=True)
         else:
-            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#54a0ff; font-size:0.85em;'>🔵 وضعیت: مازاد کود (بدون محدودیت کودی)</span></div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#54a0ff; font-size:0.85em;'>🔵 وضعیت: مازاد کود (عدم محدودیت کودی)</span></div>", unsafe_allow_html=True)
 
         if st.button("اجرای مدل بهینه‌سازی کشت 🚀", use_container_width=True):
             with st.spinner("در حال حل ماتریس‌های برنامه‌ریزی خطی..."):
