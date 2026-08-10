@@ -202,7 +202,7 @@ with tab_lp:
         if st.session_state.lp_results:
             res = st.session_state.lp_results
             if res["status"] == "Optimal":
-                st.success("✅ جواب بهینه یافت شد (با احتساب جریمه تک‌کشتی برای ایجاد تنوع).")
+                st.success("✅ جواب بهینه یافت شد (با احتساب الگوریتم پیس‌وایز Piecewise برای حفظ کیفیت خاک).")
                 
                 m1, m2 = st.columns(2)
                 m3, m4 = st.columns(2)
@@ -360,9 +360,9 @@ with tab_ai:
         system_context += f"""
         [نتایج مدل برنامه‌ریزی خطی (LP)]:
         - سود کل پیش‌بینی شده: {lp['total_profit_million']} میلیون تومان
-        - مساحت گندم: {lp['wheat_ha']} هکتار (جریمه مازاد: {lp['wheat_excess']})
-        - مساحت جو: {lp['barley_ha']} هکتار (جریمه مازاد: {lp['barley_excess']})
-        - مساحت ذرت: {lp['corn_ha']} هکتار (جریمه مازاد: {lp['corn_excess']})
+        - مساحت کل گندم: {lp['wheat_ha']} هکتار (مساحت مشمول افت عملکرد: {lp['wheat_excess']} هکتار)
+        - مساحت کل جو: {lp['barley_ha']} هکتار (مساحت مشمول افت عملکرد: {lp['barley_excess']} هکتار)
+        - مساحت کل ذرت: {lp['corn_ha']} هکتار (مساحت مشمول افت عملکرد: {lp['corn_excess']} هکتار)
         - ارزش سایه‌ای زمین: {lp['land_shadow_price']}
         - ارزش سایه‌ای آب: {lp['water_shadow_price']}
         - ارزش سایه‌ای کود: {lp['fertilizer_shadow_price']}
