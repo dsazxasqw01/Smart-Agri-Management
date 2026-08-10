@@ -7,10 +7,10 @@ import math
 import os
 from dotenv import load_dotenv
 
-# بارگذاری متغیرهای محیطی
+# پیکربندی و بارگذاری متغیرهای محیطی
 load_dotenv()
 
-# وارد کردن ماژول‌های توسعه داده شده
+# ایمپورت ماژول‌های توسعه داده شده اختصاصی پروژه
 from modules.lp_solver import solve_crop_allocation
 from modules.ga_solver import solve_harvester_routing
 from modules.llm_chatbot import get_ai_analysis
@@ -22,7 +22,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 💅 استایل‌های سفارشی
+# تنظیمات رابط کاربری و CSS سفارشی (Custom CSS)
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700;900&display=swap');
@@ -161,6 +161,7 @@ def render_empty_state(message):
     """
     st.markdown(html, unsafe_allow_html=True)
 
+# مدیریت متغیرهای وضعیت (State Management)
 if "lp_results" not in st.session_state:
     st.session_state.lp_results = None
 if "ga_results" not in st.session_state:
@@ -171,7 +172,7 @@ if "chat_messages" not in st.session_state:
 st.title("🌾 سیستم هوشمند مدیریت مجتمع کشت و صنعت")
 st.markdown("""
 **پروژه پایانی درس برنامه‌نویسی پیشرفته - دانشگاه صنعتی شریف**  
-این داشبورد با استفاده از معماری ۴ ماژوله، مدل‌های برنامه‌ریزی خطی (LP) برای الگوی کشت و الگوریتم ژنتیک (GA) برای زمان‌بندی ماشین‌آلات را با یک دستیار هوش مصنوعی یکپارچه کرده است.
+این داشبورد با استفاده از معماری ۴ ماژوله، مدل‌های برنامه‌ریزی خطی (LP) برای الگوی کشت و الگوریتم ژنتیک (GA) برای زمان‌بندی ماشین‌آلات را با دستیار هوش مصنوعی یکپارچه کرده است.
 """)
 st.divider()
 
@@ -182,7 +183,7 @@ tab_lp, tab_ga, tab_ai = st.tabs([
 ])
 
 # ==========================================
-# 🟢 تب اول: برنامه‌ریزی خطی (Linear Programming)
+# بخش ۱: ماژول برنامه‌ریزی خطی (LP)
 # ==========================================
 with tab_lp:
     st.header("تخصیص بهینه منابع آب و کود به مزارع")
@@ -193,7 +194,7 @@ with tab_lp:
         
         land_limit = st.slider("🏞️ مساحت کل زمین (هکتار):", min_value=50, max_value=500, value=100, step=10)
         
-        # تنظیم محدوده اسلایدرها بر اساس کالیبراسیون جدید (گندم:3500، جو:4000، ذرت:8000)
+        # تنظیم پارامتر حق‌آبه و بررسی وضعیت
         water_limit = st.slider("💧 حق‌آبه کل (متر مکعب):", min_value=100000, max_value=4000000, value=600000, step=50000)
         water_per_ha = water_limit / land_limit
         if water_per_ha < 3500:
@@ -205,7 +206,7 @@ with tab_lp:
         else:
             st.markdown("<div style='margin-top:-15px; margin-bottom:15px;'><span style='color:#54a0ff; font-size:0.85em;'>🔵 وضعیت: مازاد آب (گرایش شدید به ذرت)</span></div>", unsafe_allow_html=True)
 
-        # تنظیم محدوده اسلایدر کود (جو:100، گندم:200، ذرت:400)
+        # تنظیم پارامتر موجودی کود شیمیایی و بررسی وضعیت
         fert_limit = st.slider("🧪 موجودی کود (کیلوگرم):", min_value=5000, max_value=200000, value=25000, step=2000)
         fert_per_ha = fert_limit / land_limit
         if fert_per_ha < 100:
@@ -270,7 +271,7 @@ with tab_lp:
             render_empty_state("جهت مشاهده نتایج تخصیص زمین، لطفاً مقادیر را تنظیم کرده و روی دکمه «اجرای مدل» کلیک کنید.")
 
 # ==========================================
-# 🔵 تب دوم: الگوریتم ژنتیک (Genetic Algorithm)
+# بخش ۲: ماژول الگوریتم ژنتیک (GA)
 # ==========================================
 with tab_ga:
     st.header("زمان‌بندی و مسیریابی ناوگان ماشین‌آلات (mTSP)")
@@ -308,30 +309,30 @@ with tab_ga:
                 path = res_ga["best_path"]
                 n_vehicles = res_ga["num_vehicles"]
                 
-                # تقسیم مسیرها بین کمباین‌ها
+                # اختصاص مسیرها به ناوگان ماشین‌آلات (برش آرایه مسیر)
                 chunk_size = math.ceil(len(path) / n_vehicles)
                 routes = [path[i:i + chunk_size] for i in range(0, len(path), chunk_size)]
 
                 fig_map = go.Figure()
                 
-                # رسم مزارع
+                # رسم موقعیت مزارع در شبکه دو بعدی
                 fig_map.add_trace(go.Scatter(
                     x=coords[1:, 0], y=coords[1:, 1], mode='markers+text',
                     text=[str(i) for i in range(1, len(coords))], textposition="top center",
                     marker=dict(size=12, color='#e74c3c', line=dict(width=1, color='white')), name='مزارع'
                 ))
                 
-                # رسم گاراژ
+                # رسم انبار/گاراژ مرکزی
                 fig_map.add_trace(go.Scatter(
                     x=[coords[0, 0]], y=[coords[0, 1]], mode='markers',
                     marker=dict(size=22, color='#27ae60', symbol='star', line=dict(width=2, color='white')), name='گاراژ مرکزی'
                 ))
                 
-                # رسم مسیر هر کمباین با رنگ مجزا
+                # رسم گراف مسیرهای بهینه شده برای هر خودرو
                 colors = ['#2980b9', '#8e44ad', '#f39c12', '#16a085', '#c0392b', '#d35400', '#34495e']
                 for idx, route in enumerate(routes):
                     if not route: continue
-                    full_route = [0] + route + [0] # رفت از گاراژ و برگشت به گاراژ
+                    full_route = [0] + route + [0] # تخصیص گره مبدأ و مقصد برای هر مدار مسیریابی
                     route_coords = coords[full_route]
                     
                     fig_map.add_trace(go.Scatter(
@@ -363,11 +364,11 @@ with tab_ga:
             render_empty_state("جهت مشاهده نقشه اعزام ناوگان، لطفاً روی دکمه «اجرای الگوریتم تکاملی» کلیک کنید.")
 
 # ==========================================
-# 🤖 تب سوم: دستیار هوشمند (LLM / Dynamic RAG)
+# بخش ۳: ماژول دستیار هوشمند (LLM)
 # ==========================================
 with tab_ai:
     st.header("💬 دستیار مدیریتی هوشمند (مبتنی بر Gemini)")
-    st.markdown("من نتایج تخصیص زمین و مسیریابی را خوانده‌ام. سوالات مدیریتی یا تحلیل حساسیت خود را بپرسید!")
+    st.markdown("دستیار هوشمند با دسترسی مستقیم به نتایج مدل‌های برنامه‌ریزی خطی و الگوریتم ژنتیک، آماده ارائه تحلیل‌های حساسیت و دلایل بهینگی است.")
 
     system_context = """
     شما یک مهندس صنایع و مشاور ارشد تصمیم‌گیری در یک 'مجتمع کشت و صنعت هوشمند' هستید.

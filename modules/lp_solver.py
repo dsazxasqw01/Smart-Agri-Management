@@ -3,16 +3,15 @@ from typing import Dict, Any
 
 def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_budget: float) -> Dict[str, Any]:
     """
-    حل‌کننده برنامه‌ریزی خطی با تقریب خطی پویا (بدون دریافت پارامتر مخفی از تست‌ها).
-    تمامی قوانین تجاری و جریمه‌ها درون خود مدل کپسوله شده‌اند.
+    حل‌کننده مدل برنامه‌ریزی خطی (LP) جهت تخصیص بهینه منابع.
+    در این مدل از تکنیک تقریب خطی تکه‌ای (Piecewise Linear Approximation) جهت اعمال
+    تابع جریمه بهره‌وری خاک ناشی از کشت متوالی استفاده شده است.
     """
     model = pulp.LpProblem("Smart_Agri_Crop_Allocation", pulp.LpMaximize)
 
     # ==========================================
-    # کالیبراسیون دقیق ریاضی (سنگ-کاغذ-قیچی)
-    # ذرت: پادشاه زمین (بیشترین سود هکتاری)
-    # گندم: پادشاه آب (کمترین مصرف آب)
-    # جو: پادشاه کود (کمترین مصرف کود)
+    # پارامترهای مدل‌سازی زراعی
+    # شامل سود خالص برآورد شده، نیاز آبی (متر مکعب بر هکتار) و نیاز کودی (کیلوگرم بر هکتار)
     # ==========================================
     crops = {
         "wheat": {"profit": 55, "water": 3500, "fert": 200},
@@ -20,20 +19,21 @@ def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_bu
         "corn": {"profit": 90, "water": 8000, "fert": 400}
     }
 
-    # قوانین ثابت جریمه (کپسوله شده - غیرقابل تغییر از بیرون)
+    # تنظیمات پارامترهای تابع جریمه پلکانی (حفظ تنوع زراعی)
     num_tiers = 10
-    max_penalty = 0.30  # 30% افت نهایی سود (جلوگیری از همپوشانی سودها)
-    penalty_power = 2.0 # تابع درجه ۲
+    max_penalty = 0.30
+    penalty_power = 2.0
 
     tier_capacity = land_budget / num_tiers
     tier_vars = {c: [] for c in crops}
     
+    # تعریف متغیرهای تصمیم در قالب طبقه‌بندی‌های کیفی اراضی
     for c in crops:
         for i in range(num_tiers):
             var = pulp.LpVariable(f'{c}_Tier_{i}', lowBound=0, upBound=tier_capacity, cat='Continuous')
             tier_vars[c].append(var)
 
-    # تابع هدف
+    # فرمول‌بندی تابع هدف (بهینه‌سازی سود کل با اعمال ضریب افت کیفیت)
     total_profit = 0
     for c, data in crops.items():
         base_profit = data["profit"]
@@ -44,11 +44,12 @@ def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_bu
             
     model += total_profit, "Total_Profit"
 
-    # قیود
+    # اعمال قیود اصلی سیستم بر اساس ظرفیت منابع
     model += pulp.lpSum(crops[c]["water"] * tier_vars[c][i] for c in crops for i in range(num_tiers)) <= water_budget, "Water_Constraint"
     model += pulp.lpSum(crops[c]["fert"] * tier_vars[c][i] for c in crops for i in range(num_tiers)) <= fertilizer_budget, "Fertilizer_Constraint"
     model += pulp.lpSum(tier_vars[c][i] for c in crops for i in range(num_tiers)) <= land_budget, "Land_Constraint"
 
+    # اجرای الگوریتم حل‌کننده
     model.solve(pulp.PULP_CBC_CMD(msg=False))
     status_str = pulp.LpStatus[model.status]
 
@@ -56,6 +57,7 @@ def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_bu
         areas = {c: sum(tier_vars[c][i].varValue for i in range(num_tiers)) for c in crops}
         excesses = {c: sum(tier_vars[c][i].varValue for i in range(1, num_tiers)) for c in crops}
 
+        # استخراج متغیرهای دوگان (Shadow Prices) جهت تفسیر مدیریتی و هوش مصنوعی
         results = {
             "status": "Optimal",
             "wheat_ha": round(areas["wheat"], 2),

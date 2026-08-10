@@ -7,6 +7,9 @@ np.random.seed(42)
 random.seed(42)
 
 def generate_mock_farms(num_farms: int, grid_size: int = 100) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    تولید موقعیت جغرافیایی تصادفی برای مزارع و محاسبه ماتریس فواصل اقلیدسی.
+    """
     coords = np.random.rand(num_farms, 2) * grid_size
     dist_matrix = np.zeros((num_farms, num_farms))
 
@@ -18,8 +21,9 @@ def generate_mock_farms(num_farms: int, grid_size: int = 100) -> Tuple[np.ndarra
 
 def calculate_fitness(chromosome: List[int], dist_matrix: np.ndarray, num_vehicles: int) -> float:
     """
-    تابع برازش برای mTSP: شکستن کروموزوم به K بخش (کمباین)
-    و محاسبه زمان طولانی‌ترین مسیر (Makespan).
+    تابع ارزیابی برازش برای مدل mTSP:
+    تقسیم ساختار کروموزوم جایگشتی به K بخش (تعداد ماشین‌آلات)
+    و محاسبه زمان طولانی‌ترین مسیر (Makespan) با هدف کمینه‌سازی زمان اتمام کار.
     """
     chunk_size = math.ceil(len(chromosome) / num_vehicles)
     routes = [chromosome[i:i + chunk_size] for i in range(0, len(chromosome), chunk_size)]
@@ -29,26 +33,32 @@ def calculate_fitness(chromosome: List[int], dist_matrix: np.ndarray, num_vehicl
     
     for route in routes:
         if not route: continue
-        # شروع از گاراژ (نود 0)
+        # در مدل mTSP، گره 0 به عنوان انبار/گاراژ مرکزی در نظر گرفته می‌شود
         dist = dist_matrix[0][route[0]]
         for i in range(len(route)-1):
             dist += dist_matrix[route[i]][route[i+1]]
-        # بازگشت به گاراژ
+        # بازگشت ماشین به انبار پس از اتمام سرویس‌دهی
         dist += dist_matrix[route[-1]][0]
         
         if dist > makespan:
             makespan = dist
         total_dist += dist
         
-    # کمینه کردن ماکزیمم مسافت (زمان‌بندی) + کسر کوچکی از مسافت کل برای بهینگی مسیر
+    # ترکیب هدف اصلی (کمینه‌سازی زمان‌بندی ماکزیمم) به همراه کسر کوچکی از مسافت کل جهت شکستن تساوی‌ها
     return makespan + (0.001 * total_dist)
 
 def tournament_selection(population: List[List[int]], fitness_scores: List[float], k: int = 3) -> List[int]:
+    """
+    عملگر انتخاب والدین بر مبنای تورنمنت (Tournament Selection).
+    """
     selected_indices = random.sample(range(len(population)), k)
     best_idx = min(selected_indices, key=lambda idx: fitness_scores[idx])
     return population[best_idx]
 
 def order_crossover(parent1: List[int], parent2: List[int]) -> List[int]:
+    """
+    عملگر تقاطع ترتیبی (OX - Order Crossover) مناسب برای حفظ اعتبارسنجی در مسائل جایگشتی.
+    """
     size = len(parent1)
     start, end = sorted(random.sample(range(size), 2))
     child = [-1] * size
@@ -62,6 +72,9 @@ def order_crossover(parent1: List[int], parent2: List[int]) -> List[int]:
     return child
 
 def swap_mutation(chromosome: List[int], mutation_rate: float) -> List[int]:
+    """
+    عملگر جهش از نوع تعویض (Swap Mutation) جهت حفظ تنوع ژنتیکی.
+    """
     mutated = chromosome.copy()
     if random.random() < mutation_rate:
         idx1, idx2 = random.sample(range(len(mutated)), 2)
@@ -76,10 +89,12 @@ def solve_harvester_routing(
     mutation_rate: float = 0.15,
     early_stopping_patience: int = 30
 ) -> Dict[str, Any]:
-    
+    """
+    الگوریتم ژنتیک سفارشی‌سازی شده جهت یافتن بهینه‌ترین مسیر برای ماشین‌آلات برداشت.
+    """
     coords, dist_matrix = generate_mock_farms(num_farms)
     
-    # در mTSP، نود 0 گاراژ است، پس مزارع از 1 تا N-1 هستند
+    # تخصیص گره 0 به گاراژ و گره‌های 1 تا N-1 به مزارع جهت مسیریابی
     farms = list(range(1, num_farms))
     population = [list(np.random.permutation(farms)) for _ in range(pop_size)]
 
@@ -102,9 +117,11 @@ def solve_harvester_routing(
 
         history_best_distances.append(global_best_distance)
 
+        # پیاده‌سازی مکانیسم توقف زودهنگام (Early Stopping) جهت کنترل هزینه‌های محاسباتی
         if generations_without_improvement >= early_stopping_patience:
             break
 
+        # اعمال استراتژی Elitism جهت حفظ بهترین کروموزوم
         new_population = [global_best_path]
 
         while len(new_population) < pop_size:
@@ -118,7 +135,7 @@ def solve_harvester_routing(
 
     return {
         "best_path": global_best_path,
-        "best_distance": round(global_best_distance, 2), # این الان Makespan است
+        "best_distance": round(global_best_distance, 2),
         "history": history_best_distances,
         "coords": coords.tolist(),
         "stopped_at_generation": gen,
