@@ -22,58 +22,99 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 💅 استایل‌های سفارشی (CSS) برای راست‌چین کردن و زیبایی
+# 💅 استایل‌های سفارشی (CSS) هوشمند برای رفع مشکلات RTL
+# به جای اعمال جهت راست‌چین به کل صفحه که باعث به‌هم‌ریختگی می‌شود،
+# فقط متون و عناصر مرتبط را راست‌چین می‌کنیم.
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700;900&display=swap');
 
-html, body, [class*="css"] {
+* {
     font-family: 'Vazirmatn', sans-serif !important;
 }
 
-/* راست‌چین کردن کل برنامه */
-.stApp {
+/* راست‌چین کردن متون بدون تخریب ساختار فلکس‌باکس Streamlit */
+h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown, .stSelectbox label, .stSlider label, .stNumberInput label {
     direction: rtl;
+    text-align: right;
 }
 
-/* تنظیمات متون برای راست‌چین */
-p, h1, h2, h3, h4, h5, h6, span, label, .stMarkdown, div[data-testid="stMetricValue"], div[data-testid="stMetricDelta"] {
-    text-align: right !important;
+/* راست‌چین کردن پیام‌های چت‌بات */
+[data-testid="stChatMessage"] {
+    direction: rtl;
+    text-align: right;
 }
 
-/* چپ‌چین نگه داشتن کدهای پایتون در صورت نیاز */
-code, pre {
-    direction: ltr !important;
-    text-align: left !important;
-    font-family: monospace !important;
-}
-
-/* استایل دهی به دکمه‌ها */
+/* استایل دهی به دکمه‌های اصلی */
 .stButton>button {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
     color: white;
-    border-radius: 8px;
+    border-radius: 12px;
     border: none;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    font-weight: bold;
+    padding: 10px 24px;
+    box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3);
+    font-weight: 700;
     transition: all 0.3s ease;
+    width: 100%;
 }
 .stButton>button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 20px rgba(255, 75, 43, 0.4);
     color: white;
 }
 
-/* زیباسازی باکس‌های متریک */
-[data-testid="stMetric"] {
-    background: rgba(255, 255, 255, 0.03);
-    padding: 1rem;
-    border-radius: 10px;
+/* ویجت اختصاصی برای متریک‌ها (جلوگیری از نقطه‌چین شدن اعداد) */
+.custom-metric-card {
+    background-color: rgba(30, 30, 30, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border-radius: 15px;
+    padding: 20px 15px;
+    text-align: right;
+    direction: rtl;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+    margin-bottom: 1rem;
+}
+.custom-metric-card:hover {
+    transform: scale(1.02);
+    background-color: rgba(40, 40, 40, 0.6);
+}
+.cm-title {
+    color: #a0aec0;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    font-weight: 400;
+}
+.cm-value {
+    color: #ffffff;
+    font-size: 2.2rem;
+    font-weight: 900;
+    margin-bottom: 8px;
+    line-height: 1.2;
+}
+.cm-delta {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    font-size: 0.9rem;
+    padding: 4px 12px;
+    border-radius: 20px;
+    display: inline-block;
+    font-weight: 500;
 }
 </style>
 """, unsafe_allow_html=True)
+
+# تابع کمکی برای رسم کادرهای متریک HTML اختصاصی (رفع مشکل اعداد و RTL)
+def render_custom_metric(title, value, delta=None):
+    delta_html = f"<div class='cm-delta'>{delta}</div>" if delta else ""
+    html = f"""
+    <div class="custom-metric-card">
+        <div class="cm-title">{title}</div>
+        <div class="cm-value">{value}</div>
+        {delta_html}
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
 
 # 💾 مدیریت حافظه موقت (Session State Initialization)
 if "lp_results" not in st.session_state:
@@ -86,7 +127,7 @@ if "chat_messages" not in st.session_state:
 # 🎨 هدر و عنوان اصلی داشبورد
 st.title("🌾 سیستم هوشمند مدیریت مجتمع کشت و صنعت")
 st.markdown("""
-**پروژه پایانی درس برنامه‌نویسی پیشرفته - دانشگاه صنعتی شریف**
+**پروژه پایانی درس برنامه‌نویسی پیشرفته - دانشگاه صنعتی شریف**  
 این داشبورد با استفاده از معماری ۴ ماژوله، مدل‌های برنامه‌ریزی خطی (LP) برای الگوی کشت و الگوریتم ژنتیک (GA) برای زمان‌بندی ماشین‌آلات را با یک دستیار هوش مصنوعی یکپارچه کرده است.
 """)
 st.divider()
@@ -104,7 +145,8 @@ tab_lp, tab_ga, tab_ai = st.tabs([
 with tab_lp:
     st.header("تخصیص بهینه منابع آب و کود به مزارع")
 
-    col_lp_settings, col_lp_results = st.columns([1, 2.5])
+    # ترفند طلایی برای RTL: ستون نتایج (چپ) را اول می‌نویسیم و ستون تنظیمات (راست) را دوم
+    col_lp_results, col_lp_settings = st.columns([2.5, 1])
 
     with col_lp_settings:
         st.subheader("تنظیمات پارامترها")
@@ -113,7 +155,7 @@ with tab_lp:
         water_limit = st.slider("💧 حق‌آبه کل در دسترس (متر مکعب):", min_value=10000, max_value=300000, value=100000, step=5000)
         fert_limit = st.slider("🧪 موجودی انبار کود (کیلوگرم):", min_value=1000, max_value=50000, value=5000, step=500)
 
-        if st.button("اجرای مدل بهینه‌سازی کشت 🚀", use_container_width=True, type="primary"):
+        if st.button("اجرای مدل بهینه‌سازی کشت 🚀", use_container_width=True):
             with st.spinner("در حال حل ماتریس‌های برنامه‌ریزی خطی..."):
                 st.session_state.lp_results = solve_crop_allocation(water_budget=water_limit, fertilizer_budget=fert_limit)
 
@@ -124,10 +166,22 @@ with tab_lp:
             if res["status"] == "Optimal":
                 st.success("✅ جواب بهینه سراسری (Global Optimal) یافت شد.")
 
-                m1, m2, m3 = st.columns(3)
-                m1.metric(label="💰 سود خالص برآوردی", value=f"{res['total_profit_million']} میلیون تومان")
-                m2.metric(label="💧 ارزش سایه‌ای آب", value=f"{res['water_shadow_price']}", delta="ارزش 1 واحد آب اضافه")
-                m3.metric(label="🧪 ارزش سایه‌ای کود", value=f"{res['fertilizer_shadow_price']}", delta="ارزش 1 واحد کود اضافه")
+                # نمایش متریک‌ها به صورت راست‌چین واقعی با HTML سفارشی
+                m_water, m_fert, m_profit = st.columns(3)
+                
+                with m_profit:
+                    # استفاده از فرمت‌بندی , برای جداکردن هزارگان اعداد سود
+                    formatted_profit = f"{res['total_profit_million']:,.0f} <span style='font-size:1.2rem; font-weight:400;'>میلیون تومان</span>"
+                    render_custom_metric("💰 سود خالص برآوردی", formatted_profit)
+                
+                with m_fert:
+                    # رفع مشکل -0.0 با قدر مطلق و فرمت دو رقم اعشار
+                    fert_val = abs(res['fertilizer_shadow_price'])
+                    render_custom_metric("🧪 ارزش سایه‌ای کود", f"{fert_val:.2f}", "↑ ارزش ۱ واحد کود اضافه")
+                
+                with m_water:
+                    water_val = abs(res['water_shadow_price'])
+                    render_custom_metric("💧 ارزش سایه‌ای آب", f"{water_val:.2f}", "↑ ارزش ۱ واحد آب اضافه")
 
                 st.subheader("📊 سهم اختصاص یافته به هر محصول")
 
@@ -162,7 +216,6 @@ with tab_lp:
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-                    st.dataframe(df_pie, use_container_width=True)
                 else:
                     st.warning("منابع وارد شده به قدری کم است که امکان کشت هیچ محصولی وجود ندارد!")
             else:
@@ -176,16 +229,17 @@ with tab_lp:
 with tab_ga:
     st.header("زمان‌بندی و مسیریابی ماشین‌آلات سنگین (کمباین)")
 
-    col_ga_settings, col_ga_results = st.columns([1, 2.5])
+    # چیدمان ستون‌ها برای حالت راست‌چین
+    col_ga_results, col_ga_settings = st.columns([2.5, 1])
 
     with col_ga_settings:
-        st.subheader("تنظیمات ژنتیک (Hyperparameters)")
+        st.subheader("تنظیمات ژنتیک")
         num_farms = st.number_input("تعداد مزارع (Nodes):", min_value=5, max_value=100, value=20)
-        generations = st.number_input("تعداد نسل‌ها (Generations):", min_value=50, max_value=1000, value=200)
-        pop_size = st.selectbox("اندازه جمعیت (Population Size):", [50, 100, 150, 200], index=1)
-        mutation_rate = st.slider("نرخ جهش (Mutation Rate):", 0.01, 0.50, 0.15, step=0.01)
+        generations = st.number_input("تعداد نسل‌ها:", min_value=50, max_value=1000, value=200)
+        pop_size = st.selectbox("اندازه جمعیت:", [50, 100, 150, 200], index=1)
+        mutation_rate = st.slider("نرخ جهش (Mutation):", 0.01, 0.50, 0.15, step=0.01)
 
-        if st.button("اجرای الگوریتم تکاملی 🧬", use_container_width=True, type="primary"):
+        if st.button("اجرای الگوریتم تکاملی 🧬", use_container_width=True):
             with st.spinner("در حال تکامل نسل‌ها و جستجوی فضای حالت..."):
                 st.session_state.ga_results = solve_harvester_routing(
                     num_farms=num_farms,
@@ -198,8 +252,11 @@ with tab_ga:
         if st.session_state.ga_results:
             res_ga = st.session_state.ga_results
 
-            st.success(f"✅ جستجو پایان یافت. توقف در نسل: {res_ga['stopped_at_generation']}")
-            st.metric("کوتاه‌ترین مسافت یافت شده", f"{res_ga['best_distance']} کیلومتر")
+            render_custom_metric(
+                "🏆 کوتاه‌ترین مسافت کشف شده", 
+                f"{res_ga['best_distance']} <span style='font-size:1.2rem; font-weight:400;'>کیلومتر</span>", 
+                f"توقف در نسل: {res_ga['stopped_at_generation']}"
+            )
 
             chart_tab1, chart_tab2 = st.tabs(["🗺️ نقشه مسیریابی کمباین", "📉 نمودار همگرایی الگوریتم"])
 
@@ -239,7 +296,6 @@ with tab_ga:
                 
                 fig_map.update_layout(
                     title="شبکه بهینه مسیریابی ماشین‌آلات",
-                    xaxis_title="مختصات X", yaxis_title="مختصات Y",
                     font=dict(family="Vazirmatn"),
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
