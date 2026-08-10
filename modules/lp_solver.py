@@ -7,23 +7,31 @@ def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_bu
     """
     model = pulp.LpProblem("Smart_Agri_Crop_Allocation", pulp.LpMaximize)
 
-    # متغیرهای تصمیم (پیوسته)
     wheat = pulp.LpVariable('Wheat_Area_ha', lowBound=0, cat='Continuous')
     barley = pulp.LpVariable('Barley_Area_ha', lowBound=0, cat='Continuous')
     corn = pulp.LpVariable('Corn_Area_ha', lowBound=0, cat='Continuous')
 
-    # تابع هدف (سود هر هکتار اصلاح شد تا ترکیبی واقعی‌تر بدهد)
-    # گندم=50، جو=40، ذرت=90
+    # تابع هدف: طراحی مهندسی شده برای ایجاد مزیت رقابتی مجزا
+    # گندم: بهترین بهره‌وری آب
+    # جو: بهترین بهره‌وری کود
+    # ذرت: سودآورترین در واحد زمین (اما پرمصرف)
     model += 50 * wheat + 40 * barley + 90 * corn, "Total_Profit"
 
-    # قیود مسئله
-    model += (4000 * wheat + 3000 * barley + 6500 * corn <= water_budget, "Water_Constraint")
-    model += (200 * wheat + 150 * barley + 400 * corn <= fertilizer_budget, "Fertilizer_Constraint")
-    
-    # قید جدید و حیاتی: مساحت زمین
+    # قیود منابع (ظرفیت‌ها)
+    model += (3000 * wheat + 4000 * barley + 6500 * corn <= water_budget, "Water_Constraint")
+    model += (250 * wheat + 150 * barley + 400 * corn <= fertilizer_budget, "Fertilizer_Constraint")
     model += (wheat + barley + corn <= land_budget, "Land_Constraint")
 
-    # حل مدل
+    # ==========================================
+    # قیود تناوب زراعی و مدیریت ریسک (Crop Rotation)
+    # برای جلوگیری از تک‌کشتی، هیچ محصولی نباید بیش از ۴۵٪ از کل مساحت کاشته شده را اشغال کند.
+    # فرمول: Crop <= 0.45 * (Wheat + Barley + Corn)
+    # که به شکل استاندارد زیر ساده می‌شود:
+    # ==========================================
+    model += (0.55 * wheat - 0.45 * barley - 0.45 * corn <= 0, "Rotation_Wheat")
+    model += (-0.45 * wheat + 0.55 * barley - 0.45 * corn <= 0, "Rotation_Barley")
+    model += (-0.45 * wheat - 0.45 * barley + 0.55 * corn <= 0, "Rotation_Corn")
+
     model.solve(pulp.PULP_CBC_CMD(msg=False))
     status_str = pulp.LpStatus[model.status]
 
