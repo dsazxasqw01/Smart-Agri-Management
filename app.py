@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import math
 import os
-import time
 from dotenv import load_dotenv
 
 # بارگذاری متغیرهای محیطی
@@ -237,9 +236,11 @@ with tab_lp:
                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
                     )
-                    # تزریق کلید رندم/متغیر برای اطمینان از آپدیت شدن نمودار پلاتلی در صورت کش شدن استریم‌لیت
-                    chart_key = f"pie_chart_{res['total_profit_million']}_{time.time()}"
-                    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+                    fig.update_traces(textposition='inside', textinfo='percent+label')
+                    
+                    # حذف آرگومان کلید (key) رندوم برای رفع مشکل آپدیت نشدن نمودار
+                    # استریم‌لیت با تشخیص تغییر آبجکت fig، به درستی آن را آپدیت خواهد کرد
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.warning("منابع وارد شده به قدری کم است که امکان کشت هیچ محصولی وجود ندارد!")
             else:
