@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import math
 import os
+import time
 from dotenv import load_dotenv
 
 # بارگذاری متغیرهای محیطی
@@ -202,9 +203,8 @@ with tab_lp:
         if st.session_state.lp_results:
             res = st.session_state.lp_results
             if res["status"] == "Optimal":
-                st.success("✅ جواب بهینه سراسری (Global Optimal) یافت شد.")
+                st.success("✅ جواب بهینه یافت شد (با احتساب جریمه تک‌کشتی برای ایجاد تنوع).")
                 
-                # نمایش 4 متریک برای نمایش کامل تحلیل حساسیت
                 m1, m2 = st.columns(2)
                 m3, m4 = st.columns(2)
                 
@@ -237,7 +237,9 @@ with tab_lp:
                         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    # تزریق کلید رندم/متغیر برای اطمینان از آپدیت شدن نمودار پلاتلی در صورت کش شدن استریم‌لیت
+                    chart_key = f"pie_chart_{res['total_profit_million']}_{time.time()}"
+                    st.plotly_chart(fig, use_container_width=True, key=chart_key)
                 else:
                     st.warning("منابع وارد شده به قدری کم است که امکان کشت هیچ محصولی وجود ندارد!")
             else:
@@ -359,9 +361,9 @@ with tab_ai:
         system_context += f"""
         [نتایج مدل برنامه‌ریزی خطی (LP)]:
         - سود کل پیش‌بینی شده: {lp['total_profit_million']} میلیون تومان
-        - مساحت گندم: {lp['wheat_ha']} هکتار
-        - مساحت جو: {lp['barley_ha']} هکتار
-        - مساحت ذرت: {lp['corn_ha']} هکتار
+        - مساحت گندم: {lp['wheat_ha']} هکتار (جریمه مازاد: {lp['wheat_excess']})
+        - مساحت جو: {lp['barley_ha']} هکتار (جریمه مازاد: {lp['barley_excess']})
+        - مساحت ذرت: {lp['corn_ha']} هکتار (جریمه مازاد: {lp['corn_excess']})
         - ارزش سایه‌ای زمین: {lp['land_shadow_price']}
         - ارزش سایه‌ای آب: {lp['water_shadow_price']}
         - ارزش سایه‌ای کود: {lp['fertilizer_shadow_price']}
