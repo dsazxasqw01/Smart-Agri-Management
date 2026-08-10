@@ -3,10 +3,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 import pandas as pd
+import math
 import os
 from dotenv import load_dotenv
 
-# بارگذاری متغیرهای محیطی برای دسترسی به کلیدهای API
+# بارگذاری متغیرهای محیطی
 load_dotenv()
 
 # وارد کردن ماژول‌های توسعه داده شده
@@ -14,7 +15,6 @@ from modules.lp_solver import solve_crop_allocation
 from modules.ga_solver import solve_harvester_routing
 from modules.llm_chatbot import get_ai_analysis
 
-# ⚙️ تنظیمات پیکربندی صفحه (Page Config)
 st.set_page_config(
     page_title="سیستم کشت و صنعت هوشمند | دانشگاه شریف",
     page_icon="🌾",
@@ -22,7 +22,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 💅 استایل‌های سفارشی (CSS) برای رابط کاربری پیشرفته
+# 💅 استایل‌های سفارشی
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700;900&display=swap');
@@ -31,16 +31,14 @@ st.markdown("""
     font-family: 'Vazirmatn', sans-serif !important;
 }
 
-/* راست‌چین کردن متون بدون تخریب ساختار فلکس‌باکس Streamlit */
 h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown, .stSelectbox label, .stSlider label, .stNumberInput label {
     direction: rtl;
     text-align: right;
 }
 
-/* 🎨 استایل و بزرگ‌نمایی تب‌ها (ماژول‌ها) و تغییر جهت به راست‌چین */
 div[data-baseweb="tab-list"] {
     display: flex;
-    flex-direction: row-reverse; /* قرارگیری ماژول ۱ در سمت راست */
+    flex-direction: row-reverse;
     gap: 15px;
     margin-bottom: 25px;
     padding-bottom: 5px;
@@ -68,18 +66,13 @@ button[data-baseweb="tab"] p {
 button[data-baseweb="tab"][aria-selected="true"] p {
     color: white !important;
 }
-/* مخفی کردن خط زیرین پیش‌فرض استریم‌لیت */
 div[data-baseweb="tab-highlight"] {
     display: none !important;
 }
-
-/* راست‌چین کردن پیام‌های چت‌بات */
 [data-testid="stChatMessage"] {
     direction: rtl;
     text-align: right;
 }
-
-/* استایل دهی به دکمه‌های اصلی */
 .stButton>button {
     background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%);
     color: white;
@@ -94,10 +87,7 @@ div[data-baseweb="tab-highlight"] {
 .stButton>button:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(255, 75, 43, 0.4);
-    color: white;
 }
-
-/* ویجت اختصاصی برای متریک‌ها */
 .custom-metric-card {
     background-color: rgba(30, 30, 30, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -135,8 +125,6 @@ div[data-baseweb="tab-highlight"] {
     display: inline-block;
     font-weight: 500;
 }
-
-/* انیمیشن اشاره برای حالت خالی (Empty State) */
 @keyframes pulse-right {
     0% { transform: translateX(0); }
     50% { transform: translateX(15px); }
@@ -151,7 +139,6 @@ div[data-baseweb="tab-highlight"] {
 </style>
 """, unsafe_allow_html=True)
 
-# توابع کمکی برای رسم کادرهای سفارشی در محیط رابط کاربری
 def render_custom_metric(title, value, delta=None):
     delta_html = f"<div class='cm-delta'>{delta}</div>" if delta else ""
     html = f"""
@@ -174,7 +161,6 @@ def render_empty_state(message):
     """
     st.markdown(html, unsafe_allow_html=True)
 
-# 💾 مدیریت حافظه موقت (Session State Initialization)
 if "lp_results" not in st.session_state:
     st.session_state.lp_results = None
 if "ga_results" not in st.session_state:
@@ -182,7 +168,6 @@ if "ga_results" not in st.session_state:
 if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = []
 
-# 🎨 هدر و عنوان اصلی داشبورد
 st.title("🌾 سیستم هوشمند مدیریت مجتمع کشت و صنعت")
 st.markdown("""
 **پروژه پایانی درس برنامه‌نویسی پیشرفته - دانشگاه صنعتی شریف**  
@@ -190,7 +175,6 @@ st.markdown("""
 """)
 st.divider()
 
-# ایجاد سه تب مجزا
 tab_lp, tab_ga, tab_ai = st.tabs([
     "🧮 ماژول ۱: بهینه‌سازی الگوی کشت (LP)",
     "🚜 ماژول ۲: مسیریابی ماشین‌آلات (GA)",
@@ -202,47 +186,39 @@ tab_lp, tab_ga, tab_ai = st.tabs([
 # ==========================================
 with tab_lp:
     st.header("تخصیص بهینه منابع آب و کود به مزارع")
-
-    # ترفند طلایی برای RTL: ستون نتایج (چپ) را اول می‌نویسیم و ستون تنظیمات (راست) را دوم
     col_lp_results, col_lp_settings = st.columns([2.5, 1])
 
     with col_lp_settings:
         st.subheader("تنظیمات پارامترها")
-        st.info("پارامترهای موجودی منابع را برای شبیه‌سازی تغییر دهید.")
-
-        water_limit = st.slider("💧 حق‌آبه کل در دسترس (متر مکعب):", min_value=10000, max_value=300000, value=100000, step=5000)
-        fert_limit = st.slider("🧪 موجودی انبار کود (کیلوگرم):", min_value=1000, max_value=50000, value=5000, step=500)
+        land_limit = st.slider("🏞️ مساحت کل زمین (هکتار):", min_value=10, max_value=500, value=100, step=10)
+        water_limit = st.slider("💧 حق‌آبه کل (متر مکعب):", min_value=10000, max_value=300000, value=100000, step=5000)
+        fert_limit = st.slider("🧪 موجودی کود (کیلوگرم):", min_value=1000, max_value=50000, value=5000, step=500)
 
         if st.button("اجرای مدل بهینه‌سازی کشت 🚀", use_container_width=True):
             with st.spinner("در حال حل ماتریس‌های برنامه‌ریزی خطی..."):
-                st.session_state.lp_results = solve_crop_allocation(water_budget=water_limit, fertilizer_budget=fert_limit)
+                st.session_state.lp_results = solve_crop_allocation(water_budget=water_limit, fertilizer_budget=fert_limit, land_budget=land_limit)
 
     with col_lp_results:
         if st.session_state.lp_results:
             res = st.session_state.lp_results
-
             if res["status"] == "Optimal":
                 st.success("✅ جواب بهینه سراسری (Global Optimal) یافت شد.")
-
-                # نمایش متریک‌ها به صورت راست‌چین واقعی با HTML سفارشی
-                m_water, m_fert, m_profit = st.columns(3)
                 
-                with m_profit:
-                    # استفاده از فرمت‌بندی , برای جداکردن هزارگان اعداد سود
-                    formatted_profit = f"{res['total_profit_million']:,.0f} <span style='font-size:1.2rem; font-weight:400;'>میلیون تومان</span>"
+                # نمایش 4 متریک برای نمایش کامل تحلیل حساسیت
+                m1, m2 = st.columns(2)
+                m3, m4 = st.columns(2)
+                
+                with m1:
+                    formatted_profit = f"{res['total_profit_million']:,.0f} <span style='font-size:1rem; font-weight:400;'>م.تومان</span>"
                     render_custom_metric("💰 سود خالص برآوردی", formatted_profit)
-                
-                with m_fert:
-                    # رفع مشکل -0.0 با قدر مطلق و فرمت دو رقم اعشار
-                    fert_val = abs(res['fertilizer_shadow_price'])
-                    render_custom_metric("🧪 ارزش سایه‌ای کود", f"{fert_val:.2f}", "↑ ارزش ۱ واحد کود اضافه")
-                
-                with m_water:
-                    water_val = abs(res['water_shadow_price'])
-                    render_custom_metric("💧 ارزش سایه‌ای آب", f"{water_val:.2f}", "↑ ارزش ۱ واحد آب اضافه")
+                with m2:
+                    render_custom_metric("🏞️ ارزش سایه‌ای زمین", f"{abs(res['land_shadow_price']):.2f}", "سود ۱ هکتار زمین اضافه")
+                with m3:
+                    render_custom_metric("🧪 ارزش سایه‌ای کود", f"{abs(res['fertilizer_shadow_price']):.2f}", "سود ۱ واحد کود اضافه")
+                with m4:
+                    render_custom_metric("💧 ارزش سایه‌ای آب", f"{abs(res['water_shadow_price']):.2f}", "سود ۱ واحد آب اضافه")
 
                 st.subheader("📊 سهم اختصاص یافته به هر محصول")
-
                 labels = ['گندم (Wheat)', 'جو (Barley)', 'ذرت (Corn)']
                 sizes = [res['wheat_ha'], res['barley_ha'], res['corn_ha']]
                 
@@ -251,59 +227,44 @@ with tab_lp:
 
                 if actual_sizes:
                     df_pie = pd.DataFrame({"محصول": actual_labels, "مساحت پیشنهادی (هکتار)": actual_sizes})
-                    
-                    # نمودار دایره ای مدرن با پلاتلی
                     fig = px.pie(
-                        df_pie, 
-                        values="مساحت پیشنهادی (هکتار)", 
-                        names="محصول",
-                        color="محصول",
-                        color_discrete_map={
-                            'گندم (Wheat)': '#f1c40f', 
-                            'جو (Barley)': '#e67e22', 
-                            'ذرت (Corn)': '#2ecc71'
-                        },
+                        df_pie, values="مساحت پیشنهادی (هکتار)", names="محصول", color="محصول",
+                        color_discrete_map={'گندم (Wheat)': '#f1c40f', 'جو (Barley)': '#e67e22', 'ذرت (Corn)': '#2ecc71'},
                         hole=0.4
                     )
                     fig.update_layout(
-                        margin=dict(t=20, b=20, l=20, r=20),
-                        font=dict(family="Vazirmatn", size=14),
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(0,0,0,0)",
+                        margin=dict(t=20, b=20, l=20, r=20), font=dict(family="Vazirmatn", size=14),
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                         legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
                     )
                     st.plotly_chart(fig, use_container_width=True)
-
                 else:
                     st.warning("منابع وارد شده به قدری کم است که امکان کشت هیچ محصولی وجود ندارد!")
             else:
                 st.error("❌ مدل جواب موجهی ندارد (Infeasible). لطفاً منابع را افزایش دهید.")
         else:
-            render_empty_state("جهت مشاهده نتایج تخصیص زمین، لطفاً مقادیر را در منوی سمت راست تنظیم کرده و روی دکمه «اجرای مدل» کلیک کنید.")
+            render_empty_state("جهت مشاهده نتایج تخصیص زمین، لطفاً مقادیر را تنظیم کرده و روی دکمه «اجرای مدل» کلیک کنید.")
 
 # ==========================================
 # 🔵 تب دوم: الگوریتم ژنتیک (Genetic Algorithm)
 # ==========================================
 with tab_ga:
-    st.header("زمان‌بندی و مسیریابی ماشین‌آلات سنگین (کمباین)")
-
-    # چیدمان ستون‌ها برای حالت راست‌چین
+    st.header("زمان‌بندی و مسیریابی ناوگان ماشین‌آلات (mTSP)")
     col_ga_results, col_ga_settings = st.columns([2.5, 1])
 
     with col_ga_settings:
         st.subheader("تنظیمات ژنتیک")
         num_farms = st.number_input("تعداد مزارع (Nodes):", min_value=5, max_value=100, value=20)
+        num_vehicles = st.slider("🚜 تعداد کمباین‌ها (ناوگان):", min_value=1, max_value=10, value=3)
         generations = st.number_input("تعداد نسل‌ها:", min_value=50, max_value=1000, value=200)
         pop_size = st.selectbox("اندازه جمعیت:", [50, 100, 150, 200], index=1)
-        mutation_rate = st.slider("نرخ جهش (Mutation):", 0.01, 0.50, 0.15, step=0.01)
+        mutation_rate = st.slider("نرخ جهش:", 0.01, 0.50, 0.15, step=0.01)
 
         if st.button("اجرای الگوریتم تکاملی 🧬", use_container_width=True):
-            with st.spinner("در حال تکامل نسل‌ها و جستجوی فضای حالت..."):
+            with st.spinner("در حال تکامل نسل‌ها برای اعزام ناوگان..."):
                 st.session_state.ga_results = solve_harvester_routing(
-                    num_farms=num_farms,
-                    generations=generations,
-                    pop_size=pop_size,
-                    mutation_rate=mutation_rate
+                    num_farms=num_farms, num_vehicles=num_vehicles, generations=generations,
+                    pop_size=pop_size, mutation_rate=mutation_rate
                 )
 
     with col_ga_results:
@@ -311,82 +272,71 @@ with tab_ga:
             res_ga = st.session_state.ga_results
 
             render_custom_metric(
-                "🏆 کوتاه‌ترین مسافت کشف شده", 
-                f"{res_ga['best_distance']} <span style='font-size:1.2rem; font-weight:400;'>کیلومتر</span>", 
-                f"توقف در نسل: {res_ga['stopped_at_generation']}"
+                "⏳ کوتاه‌ترین زمان‌بندی کل (Makespan)", 
+                f"{res_ga['best_distance']} <span style='font-size:1.2rem; font-weight:400;'>واحد</span>", 
+                f"بهینه شده در نسل: {res_ga['stopped_at_generation']}"
             )
 
-            chart_tab1, chart_tab2 = st.tabs(["🗺️ نقشه مسیریابی کمباین", "📉 نمودار همگرایی الگوریتم"])
+            chart_tab1, chart_tab2 = st.tabs(["🗺️ نقشه مسیریابی ناوگان", "📉 نمودار همگرایی الگوریتم"])
 
             with chart_tab1:
                 coords = np.array(res_ga["coords"])
                 path = res_ga["best_path"]
-                path_closed = path + [path[0]]
-                path_coords = coords[path_closed]
+                n_vehicles = res_ga["num_vehicles"]
+                
+                # تقسیم مسیرها بین کمباین‌ها
+                chunk_size = math.ceil(len(path) / n_vehicles)
+                routes = [path[i:i + chunk_size] for i in range(0, len(path), chunk_size)]
 
                 fig_map = go.Figure()
                 
                 # رسم مزارع
                 fig_map.add_trace(go.Scatter(
-                    x=coords[:, 0], y=coords[:, 1], 
-                    mode='markers+text',
-                    text=[str(i) for i in range(len(coords))],
-                    textposition="top center",
-                    marker=dict(size=12, color='#e74c3c', line=dict(width=1, color='white')),
-                    name='مزارع'
+                    x=coords[1:, 0], y=coords[1:, 1], mode='markers+text',
+                    text=[str(i) for i in range(1, len(coords))], textposition="top center",
+                    marker=dict(size=12, color='#e74c3c', line=dict(width=1, color='white')), name='مزارع'
                 ))
                 
-                # رسم مسیر
+                # رسم گاراژ
                 fig_map.add_trace(go.Scatter(
-                    x=path_coords[:, 0], y=path_coords[:, 1], 
-                    mode='lines',
-                    line=dict(width=2, color='#2980b9'),
-                    name='مسیر حرکت'
+                    x=[coords[0, 0]], y=[coords[0, 1]], mode='markers',
+                    marker=dict(size=22, color='#27ae60', symbol='star', line=dict(width=2, color='white')), name='گاراژ مرکزی'
                 ))
                 
-                # گاراژ
-                fig_map.add_trace(go.Scatter(
-                    x=[coords[path[0], 0]], y=[coords[path[0], 1]], 
-                    mode='markers',
-                    marker=dict(size=20, color='#27ae60', symbol='star', line=dict(width=1, color='white')),
-                    name='گاراژ مرکزی (مبدأ)'
-                ))
+                # رسم مسیر هر کمباین با رنگ مجزا
+                colors = ['#2980b9', '#8e44ad', '#f39c12', '#16a085', '#c0392b', '#d35400', '#34495e']
+                for idx, route in enumerate(routes):
+                    if not route: continue
+                    full_route = [0] + route + [0] # رفت از گاراژ و برگشت به گاراژ
+                    route_coords = coords[full_route]
+                    
+                    fig_map.add_trace(go.Scatter(
+                        x=route_coords[:, 0], y=route_coords[:, 1], mode='lines',
+                        line=dict(width=3, color=colors[idx % len(colors)]), name=f'کمباین {idx+1}'
+                    ))
                 
                 fig_map.update_layout(
-                    title="شبکه بهینه مسیریابی ماشین‌آلات",
-                    font=dict(family="Vazirmatn"),
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
+                    title="شبکه بهینه اعزام ناوگان کمباین‌ها (mTSP)", font=dict(family="Vazirmatn"),
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
                     xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)'),
                     yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)')
                 )
-                
                 st.plotly_chart(fig_map, use_container_width=True)
 
-                st.write("**ترتیب ویزیت مزارع:**")
-                st.code(" ➔ ".join(map(str, path_closed)))
-
             with chart_tab2:
-                st.write("این نمودار نشان می‌دهد الگوریتم در چه نسلی به جواب بهینه رسیده و متوقف شده است.")
-                
                 fig_hist = px.line(
-                    x=list(range(len(res_ga["history"]))), 
-                    y=res_ga["history"],
-                    labels={'x': 'نسل‌ها (Generations)', 'y': 'مسافت کل (کیلومتر)'}
+                    x=list(range(len(res_ga["history"]))), y=res_ga["history"],
+                    labels={'x': 'نسل‌ها (Generations)', 'y': 'زمان/مسافت ماکزیمم'}
                 )
                 fig_hist.update_traces(line_color='#8e44ad', line_width=3)
                 fig_hist.update_layout(
-                    title="روند همگرایی الگوریتم ژنتیک",
-                    font=dict(family="Vazirmatn"),
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)'),
-                    yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)')
+                    title="روند همگرایی الگوریتم ژنتیک ناوگان", font=dict(family="Vazirmatn"),
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
                 )
                 st.plotly_chart(fig_hist, use_container_width=True)
         else:
-            render_empty_state("جهت مشاهده نقشه مسیریابی، لطفاً روی دکمه «اجرای الگوریتم تکاملی» در منوی سمت راست کلیک کنید.")
+            render_empty_state("جهت مشاهده نقشه اعزام ناوگان، لطفاً روی دکمه «اجرای الگوریتم تکاملی» کلیک کنید.")
 
 # ==========================================
 # 🤖 تب سوم: دستیار هوشمند (LLM / Dynamic RAG)
@@ -402,8 +352,6 @@ with tab_ai:
     - فقط بر اساس داده‌های زیر تحلیل کن و عددسازی نکن.
     - اگر داده‌ها صفر است، بگو منابع برای کشت کافی نبوده است.
     - از مفاهیم 'ارزش سایه‌ای' برای ارائه پیشنهاد خرید منابع بیشتر استفاده کن.
-
-    وضعیت فعلی سیستم در داشبورد:
     """
 
     if st.session_state.lp_results and st.session_state.lp_results["status"] == "Optimal":
@@ -414,27 +362,23 @@ with tab_ai:
         - مساحت گندم: {lp['wheat_ha']} هکتار
         - مساحت جو: {lp['barley_ha']} هکتار
         - مساحت ذرت: {lp['corn_ha']} هکتار
-        - ارزش سایه‌ای آب (سود هر 1 واحد آب اضافه): {lp['water_shadow_price']}
-        - ارزش سایه‌ای کود (سود هر 1 واحد کود اضافه): {lp['fertilizer_shadow_price']}
+        - ارزش سایه‌ای زمین: {lp['land_shadow_price']}
+        - ارزش سایه‌ای آب: {lp['water_shadow_price']}
+        - ارزش سایه‌ای کود: {lp['fertilizer_shadow_price']}
         """
-    else:
-        system_context += "\n[نتایج LP]: هنوز مدلی اجرا نشده یا مدل موجه نبوده است."
-
+    
     if st.session_state.ga_results:
         ga = st.session_state.ga_results
         system_context += f"""
-        [نتایج مدل الگوریتم ژنتیک (GA) برای زمان‌بندی کمباین]:
-        - بهترین مسافت کشف شده برای ویزیت مزارع: {ga['best_distance']} کیلومتر
-        - الگوریتم در نسل {ga['stopped_at_generation']} متوقف شده است.
+        [نتایج مدل الگوریتم ژنتیک (GA) برای ناوگان]:
+        - تعداد کمباین‌های اعزام شده: {ga['num_vehicles']}
+        - بهترین زمان‌بندی کل (Makespan): {ga['best_distance']} واحد
         """
-    else:
-        system_context += "\n[نتایج GA]: هنوز مدلی برای مسیریابی اجرا نشده است."
 
-    # نمایش پیام‌های خوشامدگویی یا پیام‌های گذشته
     if len(st.session_state.chat_messages) == 0:
         st.session_state.chat_messages.append({
             "role": "assistant",
-            "content": "سلام! من دستیار هوشمند شما هستم. نتایج مدل‌های بهینه‌سازی (LP و GA) را در حافظه دارم. چه کمکی از من ساخته است؟ \n*(مثال: تحلیل حساسیت آب رو بگو، یا چرا ذرت بیشتر از جو کشت شده؟)*"
+            "content": "سلام! من دستیار هوشمند شما هستم. نتایج مدل‌های بهینه‌سازی (LP و GA ناوگان) را در حافظه دارم. چه کمکی از من ساخته است؟"
         })
 
     for msg in st.session_state.chat_messages:
