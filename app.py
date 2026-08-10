@@ -22,9 +22,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 💅 استایل‌های سفارشی (CSS) هوشمند برای رفع مشکلات RTL
-# به جای اعمال جهت راست‌چین به کل صفحه که باعث به‌هم‌ریختگی می‌شود،
-# فقط متون و عناصر مرتبط را راست‌چین می‌کنیم.
+# 💅 استایل‌های سفارشی (CSS) برای رابط کاربری پیشرفته
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;700;900&display=swap');
@@ -37,6 +35,42 @@ st.markdown("""
 h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown, .stSelectbox label, .stSlider label, .stNumberInput label {
     direction: rtl;
     text-align: right;
+}
+
+/* 🎨 استایل و بزرگ‌نمایی تب‌ها (ماژول‌ها) و تغییر جهت به راست‌چین */
+div[data-baseweb="tab-list"] {
+    display: flex;
+    flex-direction: row-reverse; /* قرارگیری ماژول ۱ در سمت راست */
+    gap: 15px;
+    margin-bottom: 25px;
+    padding-bottom: 5px;
+}
+button[data-baseweb="tab"] {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 12px 30px !important;
+    transition: all 0.3s ease !important;
+}
+button[data-baseweb="tab"]:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+button[data-baseweb="tab"][aria-selected="true"] {
+    background: linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%) !important;
+    border: none !important;
+    box-shadow: 0 4px 15px rgba(255, 75, 43, 0.4) !important;
+}
+button[data-baseweb="tab"] p {
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+}
+button[data-baseweb="tab"][aria-selected="true"] p {
+    color: white !important;
+}
+/* مخفی کردن خط زیرین پیش‌فرض استریم‌لیت */
+div[data-baseweb="tab-highlight"] {
+    display: none !important;
 }
 
 /* راست‌چین کردن پیام‌های چت‌بات */
@@ -63,7 +97,7 @@ h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown, .stSelectbox label, .stSlid
     color: white;
 }
 
-/* ویجت اختصاصی برای متریک‌ها (جلوگیری از نقطه‌چین شدن اعداد) */
+/* ویجت اختصاصی برای متریک‌ها */
 .custom-metric-card {
     background-color: rgba(30, 30, 30, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -101,10 +135,23 @@ h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown, .stSelectbox label, .stSlid
     display: inline-block;
     font-weight: 500;
 }
+
+/* انیمیشن اشاره برای حالت خالی (Empty State) */
+@keyframes pulse-right {
+    0% { transform: translateX(0); }
+    50% { transform: translateX(15px); }
+    100% { transform: translateX(0); }
+}
+.empty-icon {
+    display: inline-block;
+    font-size: 55px;
+    margin-bottom: 15px;
+    animation: pulse-right 1.5s infinite;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# تابع کمکی برای رسم کادرهای متریک HTML اختصاصی (رفع مشکل اعداد و RTL)
+# توابع کمکی برای رسم کادرهای سفارشی در محیط رابط کاربری
 def render_custom_metric(title, value, delta=None):
     delta_html = f"<div class='cm-delta'>{delta}</div>" if delta else ""
     html = f"""
@@ -112,6 +159,17 @@ def render_custom_metric(title, value, delta=None):
         <div class="cm-title">{title}</div>
         <div class="cm-value">{value}</div>
         {delta_html}
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
+
+def render_empty_state(message):
+    html = f"""
+    <div style="background: rgba(255, 255, 255, 0.02); border: 2px dashed rgba(255, 255, 255, 0.15); 
+                border-radius: 20px; padding: 60px 20px; text-align: center; direction: rtl; margin-top: 30px;
+                box-shadow: inset 0 0 20px rgba(0,0,0,0.2);">
+        <div class="empty-icon">👉</div>
+        <div style="font-size: 1.3rem; color: #cbd5e1; font-weight: 500; line-height: 1.8;">{message}</div>
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
@@ -221,7 +279,7 @@ with tab_lp:
             else:
                 st.error("❌ مدل جواب موجهی ندارد (Infeasible). لطفاً منابع را افزایش دهید.")
         else:
-            st.caption("برای مشاهده نتایج، لطفاً دکمه اجرای مدل را از منوی سمت راست فشار دهید.")
+            render_empty_state("جهت مشاهده نتایج تخصیص زمین، لطفاً مقادیر را در منوی سمت راست تنظیم کرده و روی دکمه «اجرای مدل» کلیک کنید.")
 
 # ==========================================
 # 🔵 تب دوم: الگوریتم ژنتیک (Genetic Algorithm)
@@ -328,7 +386,7 @@ with tab_ga:
                 )
                 st.plotly_chart(fig_hist, use_container_width=True)
         else:
-            st.caption("برای مشاهده نقشه مسیریابی، الگوریتم ژنتیک را اجرا کنید.")
+            render_empty_state("جهت مشاهده نقشه مسیریابی، لطفاً روی دکمه «اجرای الگوریتم تکاملی» در منوی سمت راست کلیک کنید.")
 
 # ==========================================
 # 🤖 تب سوم: دستیار هوشمند (LLM / Dynamic RAG)
