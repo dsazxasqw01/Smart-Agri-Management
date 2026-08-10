@@ -15,7 +15,7 @@ def run_scenarios():
         {"name": "۱۰. منابع باز", "water": 5000000, "fert": 200000, "land": 1000}
     ]
 
-    report = "==== 🧪 گزارش خلاصه تست سناریوهای LP (مدل منحنی جریمه نرم Piecewise) ====\n\n"
+    report = "==== 🧪 گزارش خلاصه تست سناریوهای LP (الگوریتم تقریب خطی پویا - بدون عدد ثابت) ====\n\n"
 
     for s in scenarios:
         res = solve_crop_allocation(s["water"], s["fert"], s["land"])
@@ -23,9 +23,9 @@ def run_scenarios():
         report += f"🔹 {s['name']:<15} | 🏞️ {s['land']:<4} | 💧 {s['water']:<7} | 🧪 {s['fert']:<6}  =>  "
         
         if res['status'] == 'Optimal':
-            # شناسایی محصولاتی که به دلیل مازاد مشمول افت عملکرد (ورود به پله‌های بالاتر) شده‌اند
+            # شناسایی محصولاتی که به دلیل مازاد، مشمول افت عملکرد (ورود به پله‌های ۱ به بعد) شده‌اند
             excesses = [n for n, v in zip(["گندم", "جو", "ذرت"], [res['wheat_excess'], res['barley_excess'], res['corn_excess']]) if v > 0]
-            penalty_str = f"⚠️ افت عملکرد: {','.join(excesses)}" if excesses else "✅ تنوع و کیفیت خاک حفظ شد"
+            penalty_str = f"⚠️ افت عملکرد: {','.join(excesses)}" if excesses else "✅ کیفیت خاک کاملاً حفظ شد"
             
             report += f"💰 سود: {res['total_profit_million']:<6} م.ت | 🌾 گ:{res['wheat_ha']:<5} ج:{res['barley_ha']:<5} ذ:{res['corn_ha']:<5} | {penalty_str}\n"
         else:

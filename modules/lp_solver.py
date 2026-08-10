@@ -1,81 +1,83 @@
 import pulp
 from typing import Dict, Any
 
-def solve_crop_allocation(water_budget: float, fertilizer_budget: float, land_budget: float) -> Dict[str, Any]:
+def solve_crop_allocation(
+    water_budget: float, 
+    fertilizer_budget: float, 
+    land_budget: float, 
+    num_tiers: int = 10, 
+    max_penalty: float = 0.5, 
+    penalty_power: float = 2.0
+) -> Dict[str, Any]:
     """
-    حل‌کننده ریاضی مسئله برنامه‌ریزی خطی (LP) برای الگوی کشت بهینه
-    با استفاده از تکنیک پیشرفته Piecewise Linear Approximation برای ایجاد جریمه پیوسته و نرم.
+    حل‌کننده برنامه‌ریزی خطی با ایجاد پویای تقریب خطی تکه‌ای (Dynamic Piecewise Linear).
+    بدون هیچ عدد ثابتی، افت عملکرد خاک به صورت یک تابع نرم (پیش‌فرض: درجه 2) محاسبه می‌شود.
     """
     model = pulp.LpProblem("Smart_Agri_Crop_Allocation", pulp.LpMaximize)
 
-    # ==========================================
-    # تعریف متغیرها در ۴ پله (Tier) برای هر محصول
-    # این کار یک منحنی غیرخطی و نرم را شبیه‌سازی می‌کند
-    # ==========================================
-    w = [pulp.LpVariable(f'Wheat_T{i}', lowBound=0, cat='Continuous') for i in range(1, 5)]
-    b = [pulp.LpVariable(f'Barley_T{i}', lowBound=0, cat='Continuous') for i in range(1, 5)]
-    c = [pulp.LpVariable(f'Corn_T{i}', lowBound=0, cat='Continuous') for i in range(1, 5)]
+    # داده‌های پایه محصولات
+    crops = {
+        "wheat": {"profit": 50, "water": 4500, "fert": 250},
+        "barley": {"profit": 40, "water": 4000, "fert": 150},
+        "corn": {"profit": 90, "water": 8500, "fert": 400}
+    }
 
-    total_wheat = pulp.lpSum(w)
-    total_barley = pulp.lpSum(b)
-    total_corn = pulp.lpSum(c)
-    total_planted = total_wheat + total_barley + total_corn
-
+    # محاسبه ظرفیت هر پله بر اساس زمین کل (جلوگیری از باگ فریب الگوریتم)
+    tier_capacity = land_budget / num_tiers
+    
+    # دیکشنری برای نگهداری متغیرهای هر پله از هر محصول
+    tier_vars = {c: [] for c in crops}
+    
     # ==========================================
-    # تابع هدف: سود حاشیه‌ای نزولی (Diminishing Marginal Returns)
-    # سود پایه: گندم 50، جو 40، ذرت 90
-    # پله ۱ (تا ۳۰٪): سود کامل
-    # پله ۲ (۳۰ تا ۵۰٪): ۱۰٪ افت سود
-    # پله ۳ (۵۰ تا ۷۰٪): ۲۵٪ افت سود
-    # پله ۴ (۷۰ تا ۱۰۰٪): ۵۰٪ افت سود
+    # ایجاد متغیرها به صورت کاملاً پویا و الگوریتمیک
     # ==========================================
-    profit_w = 50 * w[0] + 45.0 * w[1] + 37.5 * w[2] + 25.0 * w[3]
-    profit_b = 40 * b[0] + 36.0 * b[1] + 30.0 * b[2] + 20.0 * b[3]
-    profit_c = 90 * c[0] + 81.0 * c[1] + 67.5 * c[2] + 45.0 * c[3]
-
-    model += profit_w + profit_b + profit_c, "Total_Profit"
+    for c in crops:
+        for i in range(num_tiers):
+            # هر پله دارای حد بالا معادل tier_capacity است
+            var = pulp.LpVariable(f'{c}_Tier_{i}', lowBound=0, upBound=tier_capacity, cat='Continuous')
+            tier_vars[c].append(var)
 
     # ==========================================
-    # قیود منابع فیزیکی
+    # ساخت تابع هدف با شیب سود کاهنده (Diminishing Returns)
     # ==========================================
-    model += 4500 * total_wheat + 4000 * total_barley + 8500 * total_corn <= water_budget, "Water_Constraint"
-    model += 250 * total_wheat + 150 * total_barley + 400 * total_corn <= fertilizer_budget, "Fertilizer_Constraint"
-    model += total_planted <= land_budget, "Land_Constraint"
+    total_profit = 0
+    for c, data in crops.items():
+        base_profit = data["profit"]
+        for i in range(num_tiers):
+            # تابع افت عملکرد: در پله صفر افت 0 است، در پله آخر افت برابر max_penalty است.
+            # استفاده از توان 2 (penalty_power) باعث می‌شود نمودار جریمه در ابتدا نرم و در انتها تند باشد.
+            loss_factor = max_penalty * ((i / (num_tiers - 1)) ** penalty_power)
+            tier_profit = base_profit * (1.0 - loss_factor)
+            total_profit += tier_profit * tier_vars[c][i]
+            
+    model += total_profit, "Total_Profit"
 
     # ==========================================
-    # قیود پله‌ها (Piecewise Bounds) مرتبط با کل سطح زیر کشت
+    # قیود منابع (با تجمیع جبری تمامی پله‌ها)
     # ==========================================
-    model += w[0] <= 0.30 * total_planted, "W_Tier1_Limit"
-    model += w[1] <= 0.20 * total_planted, "W_Tier2_Limit"
-    model += w[2] <= 0.20 * total_planted, "W_Tier3_Limit"
-    # پله 4 نیازی به محدودیت ندارد چون مازاد بر 70 درصد است
+    model += pulp.lpSum(crops[c]["water"] * tier_vars[c][i] for c in crops for i in range(num_tiers)) <= water_budget, "Water_Constraint"
+    model += pulp.lpSum(crops[c]["fert"] * tier_vars[c][i] for c in crops for i in range(num_tiers)) <= fertilizer_budget, "Fertilizer_Constraint"
+    model += pulp.lpSum(tier_vars[c][i] for c in crops for i in range(num_tiers)) <= land_budget, "Land_Constraint"
 
-    model += b[0] <= 0.30 * total_planted, "B_Tier1_Limit"
-    model += b[1] <= 0.20 * total_planted, "B_Tier2_Limit"
-    model += b[2] <= 0.20 * total_planted, "B_Tier3_Limit"
-
-    model += c[0] <= 0.30 * total_planted, "C_Tier1_Limit"
-    model += c[1] <= 0.20 * total_planted, "C_Tier2_Limit"
-    model += c[2] <= 0.20 * total_planted, "C_Tier3_Limit"
-
-    # حل کردن ماتریس
+    # اجرای حل‌کننده
     model.solve(pulp.PULP_CBC_CMD(msg=False))
     status_str = pulp.LpStatus[model.status]
 
     if status_str == 'Optimal':
-        # محاسبه مساحتی که وارد پله‌های دوم به بعد شده‌اند (مشمول افت عملکرد)
-        w_excess = sum(w[i].varValue for i in range(1, 4))
-        b_excess = sum(b[i].varValue for i in range(1, 4))
-        c_excess = sum(c[i].varValue for i in range(1, 4))
+        # تجمیع مساحت کل هر محصول از روی پله‌های آن
+        areas = {c: sum(tier_vars[c][i].varValue for i in range(num_tiers)) for c in crops}
+        
+        # محاسبه مساحتی که وارد فاز افت عملکرد شده است (پله‌های ۱ به بعد)
+        excesses = {c: sum(tier_vars[c][i].varValue for i in range(1, num_tiers)) for c in crops}
 
         results = {
             "status": "Optimal",
-            "wheat_ha": round(pulp.value(total_wheat), 2),
-            "barley_ha": round(pulp.value(total_barley), 2),
-            "corn_ha": round(pulp.value(total_corn), 2),
-            "wheat_excess": round(w_excess, 2),
-            "barley_excess": round(b_excess, 2),
-            "corn_excess": round(c_excess, 2),
+            "wheat_ha": round(areas["wheat"], 2),
+            "barley_ha": round(areas["barley"], 2),
+            "corn_ha": round(areas["corn"], 2),
+            "wheat_excess": round(excesses["wheat"], 2),
+            "barley_excess": round(excesses["barley"], 2),
+            "corn_excess": round(excesses["corn"], 2),
             "total_profit_million": round(pulp.value(model.objective), 2),
             "water_shadow_price": round(model.constraints["Water_Constraint"].pi, 4) if model.constraints["Water_Constraint"].pi else 0.0,
             "fertilizer_shadow_price": round(model.constraints["Fertilizer_Constraint"].pi, 4) if model.constraints["Fertilizer_Constraint"].pi else 0.0,
